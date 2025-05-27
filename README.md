@@ -1,11 +1,11 @@
-# Online Course Platform
+# VirtuLearn
 
-A Python CLI application for managing instructors and courses on an e-learning platform, built with SQLAlchemy ORM and Click.
+A Python CLI application for managing instructors, courses, and student enrollments on an e-learning platform, built with SQLAlchemy ORM and Click.
 
 ## Installation
 1. Clone the repository: `git clone <repo-url>`
-2. Navigate to the project directory: `cd online_course_platform`
-3. Install dependencies: `pipenv install`
+2. Navigate to the project directory: `cd virtulearn`
+3. Install dependencies: `pipenv install sqlalchemy click`
 4. Activate the virtual environment: `pipenv shell`
 5. Run the application: `python main.py --help`
 
@@ -22,7 +22,7 @@ A Python CLI application for managing instructors and courses on an e-learning p
 - List courses using raw SQL: `python main.py sql-instructor-courses 1`
 
 ## Database
-- The application uses a SQLite database (`courses.db`), created automatically when running `python main.py`.
+- Uses a SQLite database (`virtulearn.db`), created automatically when running `python main.py`.
 - Tables: `instructors`, `courses`, `enrollments`.
 - SQLAlchemy ORM manages database operations, with optional raw SQL in `lib/sql_operations.py`.
 
@@ -35,10 +35,15 @@ A Python CLI application for managing instructors and courses on an e-learning p
 - **SQL (Optional)**: Raw SQL queries in `sql_operations.py` for table creation and data retrieval.
 
 ## Project Structure
-- `courses.db`: SQLite database (generated after running the app).
+- `virtulearn.db`: SQLite database (generated after running the app).
 - `lib/models/`: SQLAlchemy models for database tables.
 - `lib/cli.py`: CLI commands using Click.
 - `lib/database.py`: Database setup and connection.
 - `lib/helpers.py`: Utility functions for data processing.
 - `lib/sql_operations.py`: Optional raw SQL operations.
 - `main.py`: Application entry point.
+
+## Troubleshooting
+- **ModuleNotFoundError: No module named 'sqlalchemy'**: Run `pipenv install sqlalchemy click`.
+- **Database not created**: Ensure `init_db()` is called in `main.py`. Check for `virtulearn.db`.
+- **Command not found**: Verify `cli.py` defines all commands and `main.py` runs `cli()`.

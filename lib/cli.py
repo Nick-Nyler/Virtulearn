@@ -7,7 +7,7 @@ from lib.helpers import get_instructor_summary
 
 @click.group()
 def cli():
-    """Online Course Platform CLI"""
+    """VirtuLearn CLI: Manage instructors and courses for an e-learning platform"""
     pass
 
 @cli.command()
