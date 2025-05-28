@@ -8,8 +8,7 @@
 5. [Setup and Installation](#5-setup-and-installation)
 6. [Usage](#6-usage)
 7. [Future Enhancements](#7-future-enhancements)
-8. [License](#8-license)
-9. [Author](#9-author)
+8. [Author](#9-author)
 
 ## 1. About VirtuLearn
 
