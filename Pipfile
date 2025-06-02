@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 sqlalchemy = "*"
 click = "*"
+ipython = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
