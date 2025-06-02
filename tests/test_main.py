@@ -1,226 +1,220 @@
 import unittest
-import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
-from lib.database import Base
+from unittest.mock import patch, MagicMock
+import io
+import sys
 
-from lib.models.instructor import Instructor
-from lib.models.course import Course
-from lib.models.enrollment import Enrollment
+from main import main_menu, instructor_menu, course_menu, enrollment_menu
 
-class TestModels(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.engine = create_engine('sqlite:///:memory:')
-        Base.metadata.create_all(cls.engine)
-        cls.Session = sessionmaker(bind=cls.engine)
+class TestMainMenu(unittest.TestCase):
 
     def setUp(self):
-        self.session = self.Session()
-        for table in reversed(Base.metadata.sorted_tables):
-            self.session.execute(table.delete())
-        self.session.commit()
+        self.patcher_initdb = patch('lib.cli.perform_initdb')
+        self.patcher_dropdb = patch('lib.cli.perform_dropdb')
+        self.patcher_add_instructor = patch('lib.cli.add_instructor_cli')
+        self.patcher_list_instructors = patch('lib.cli.list_instructors_cli')
+        self.patcher_find_instructor = patch('lib.cli.find_instructor_cli')
+        self.patcher_delete_instructor = patch('lib.cli.delete_instructor_cli')
+        self.patcher_add_course = patch('lib.cli.add_course_cli')
+        self.patcher_list_courses = patch('lib.cli.list_courses_cli')
+        self.patcher_find_course = patch('lib.cli.find_course_cli')
+        self.patcher_delete_course = patch('lib.cli.delete_course_cli')
+        self.patcher_assign_course = patch('lib.cli.assign_course_cli')
+        self.patcher_add_enrollment = patch('lib.cli.add_enrollment_cli')
+        self.patcher_list_enrollments = patch('lib.cli.list_enrollments_cli')
+        self.patcher_find_enrollment = patch('lib.cli.find_enrollment_cli')
+        self.patcher_delete_enrollment = patch('lib.cli.delete_enrollment_cli')
+
+        self.mock_initdb = self.patcher_initdb.start()
+        self.mock_dropdb = self.patcher_dropdb.start()
+        self.mock_add_instructor = self.patcher_add_instructor.start()
+        self.mock_list_instructors = self.patcher_list_instructors.start()
+        self.mock_find_instructor = self.patcher_find_instructor.start()
+        self.mock_delete_instructor = self.patcher_delete_instructor.start()
+        self.mock_add_course = self.patcher_add_course.start()
+        self.mock_list_courses = self.patcher_list_courses.start()
+        self.mock_find_course = self.patcher_find_course.start()
+        self.mock_delete_course = self.patcher_delete_course.start()
+        self.mock_assign_course = self.patcher_assign_course.start()
+        self.mock_add_enrollment = self.patcher_add_enrollment.start()
+        self.mock_list_enrollments = self.patcher_list_enrollments.start()
+        self.mock_find_enrollment = self.patcher_find_enrollment.start()
+        self.mock_delete_enrollment = self.patcher_delete_enrollment.start()
+
+        self.patcher_sys_exit = patch('sys.exit')
+        self.mock_sys_exit = self.patcher_sys_exit.start()
+
+        self.held_output = io.StringIO()
+        sys.stdout = self.held_output
 
     def tearDown(self):
-        self.session.rollback()
-        self.session.close()
+        self.patcher_initdb.stop()
+        self.patcher_dropdb.stop()
+        self.patcher_add_instructor.stop()
+        self.patcher_list_instructors.stop()
+        self.patcher_find_instructor.stop()
+        self.patcher_delete_instructor.stop()
+        self.patcher_add_course.stop()
+        self.patcher_list_courses.stop()
+        self.patcher_find_course.stop()
+        self.patcher_delete_course.stop()
+        self.patcher_assign_course.stop()
+        self.patcher_add_enrollment.stop()
+        self.patcher_list_enrollments.stop()
+        self.patcher_find_enrollment.stop()
+        self.patcher_delete_enrollment.stop()
+        self.patcher_sys_exit.stop()
 
-    def create_instructor(self, name="Test Instructor", expertise="Default Expertise"):
-        instructor = Instructor(name=name, expertise=expertise)
-        self.session.add(instructor)
-        self.session.commit()
-        return instructor
+        sys.stdout = sys.__stdout__
 
-    def create_course(self, title="Test Course", duration=40, instructor=None):
-        if instructor is None:
-            instructor = self.create_instructor()
-        course = Course(title=title, duration=duration, instructor=instructor)
-        self.session.add(course)
-        self.session.commit()
-        return course
+        for mock in [
+            self.mock_initdb, self.mock_dropdb, self.mock_add_instructor,
+            self.mock_list_instructors, self.mock_find_instructor, self.mock_delete_instructor,
+            self.mock_add_course, self.mock_list_courses, self.mock_find_course,
+            self.mock_delete_course, self.mock_assign_course, self.mock_add_enrollment,
+            self.mock_list_enrollments, self.mock_find_enrollment, self.mock_delete_enrollment,
+            self.mock_sys_exit
+        ]:
+            mock.reset_mock()
 
-    def create_enrollment(self, student_name="Test Student", course=None, instructor=None):
-        if course is None:
-            course = self.create_course()
-        if instructor is None:
-            instructor = course.instructor
-        enrollment_date = datetime.datetime.now()
-        enrollment = Enrollment(
-            student_name=student_name,
-            enrollment_date=enrollment_date,
-            instructor=instructor,
-            course=course
-        )
-        self.session.add(enrollment)
-        self.session.commit()
-        return enrollment
+    def simulate_menu_input(self, inputs):
+        return patch('builtins.input', side_effect=inputs)
 
-    def test_instructor_creation_with_valid_data(self):
-        instructor = self.create_instructor(name="Dr. Smith", expertise="Physics")
-        retrieved_instructor = self.session.query(Instructor).filter_by(name="Dr. Smith").first()
-        self.assertIsNotNone(retrieved_instructor)
-        self.assertEqual(retrieved_instructor.name, "Dr. Smith")
-        self.assertEqual(retrieved_instructor.expertise, "Physics")
+    def test_main_menu_initializes_db(self):
+        with self.simulate_menu_input(["5"]):
+            main_menu()
+            self.mock_initdb.assert_called_once()
+            self.mock_sys_exit.assert_called_once()
 
-    def test_instructor_name_uniqueness(self):
-        self.create_instructor(name="Dr. Jane Doe", expertise="Chemistry")
-        new_instructor = Instructor(name="Dr. Jane Doe", expertise="Biology")
-        self.session.add(new_instructor)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
+    def test_main_menu_handles_initdb_failure(self):
+        self.mock_initdb.side_effect = Exception("DB Init Failed")
+        with self.simulate_menu_input(["5"]):
+            main_menu()
+            self.mock_initdb.assert_called_once()
+            self.mock_sys_exit.assert_called_once_with(1)
+            self.assertIn("Failed to initialize database: DB Init Failed", self.held_output.getvalue())
 
-    def test_instructor_nullable_constraints(self):
-        instructor_missing_name = Instructor(expertise="Math")
-        self.session.add(instructor_missing_name)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
+    def test_main_menu_exit_option(self):
+        with self.simulate_menu_input(["5"]):
+            main_menu()
+            self.mock_sys_exit.assert_called_once()
+            self.assertIn("Exiting Virtulearn. Goodbye!", self.held_output.getvalue())
 
-        instructor_missing_expertise = Instructor(name="Prof. Empty")
-        self.session.add(instructor_missing_expertise)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
+    def test_main_menu_invalid_option(self):
+        with self.simulate_menu_input(["99", "5"]):
+            main_menu()
+            self.assertIn("Invalid option. Please try again.", self.held_output.getvalue())
+            self.mock_sys_exit.assert_called_once()
 
-    def test_instructor_relationship_to_courses(self):
-        instructor = self.create_instructor(name="Prof. Plum", expertise="Mystery")
-        course1 = self.create_course(title="Clue Solving 101", instructor=instructor)
-        course2 = self.create_course(title="Forensic Science", instructor=instructor)
+    def test_main_menu_drop_tables_option(self):
+        with self.simulate_menu_input(["4", "5"]):
+            main_menu()
+            self.mock_dropdb.assert_called_once()
+            self.mock_sys_exit.assert_called_once()
 
-        retrieved_instructor = self.session.query(Instructor).filter_by(name="Prof. Plum").first()
-        self.assertEqual(len(retrieved_instructor.courses), 2)
-        self.assertIn(course1, retrieved_instructor.courses)
-        self.assertIn(course2, retrieved_instructor.courses)
+    def test_main_menu_to_instructor_menu_and_back(self):
+        with self.simulate_menu_input(["1", "5", "5"]):
+            main_menu()
+            self.mock_add_instructor.assert_not_called()
+            self.mock_sys_exit.assert_called_once()
+            output = self.held_output.getvalue()
+            self.assertIn("--- Manage Instructors ---", output)
 
-    def test_instructor_relationship_to_enrollments(self):
-        instructor = self.create_instructor(name="Colonel Mustard", expertise="Tactics")
-        course = self.create_course(title="Strategic Planning", instructor=instructor)
-        enrollment1 = self.create_enrollment(student_name="Private Green", course=course, instructor=instructor)
-        enrollment2 = self.create_enrollment(student_name="Sergeant White", course=course, instructor=instructor)
+    def test_instructor_menu_add_instructor(self):
+        with self.simulate_menu_input(["1", "1", "5", "5"]):
+            main_menu()
+            self.mock_add_instructor.assert_called_once()
+            self.mock_sys_exit.assert_called_once()
 
-        retrieved_instructor = self.session.query(Instructor).filter_by(name="Colonel Mustard").first()
-        self.assertEqual(len(retrieved_instructor.enrollments), 2)
-        self.assertIn(enrollment1, retrieved_instructor.enrollments)
-        self.assertIn(enrollment2, retrieved_instructor.enrollments)
+    def test_instructor_menu_list_instructors(self):
+        with self.simulate_menu_input(["1", "2", "5", "5"]):
+            main_menu()
+            self.mock_list_instructors.assert_called_once()
 
-    def test_instructor_repr(self):
-        instructor = self.create_instructor(id=1, name="Ms. Scarlet", expertise="Deduction")
-        self.create_course(title="Investigative Techniques", instructor=instructor)
-        retrieved_instructor = self.session.query(Instructor).filter_by(id=1).first()
+    def test_instructor_menu_find_instructor(self):
+        with self.simulate_menu_input(["1", "3", "5", "5"]):
+            main_menu()
+            self.mock_find_instructor.assert_called_once()
 
-        expected_repr = f"<Instructor(id=1, name='Ms. Scarlet', expertise='Deduction', courses=1)>"
-        self.assertEqual(str(retrieved_instructor), expected_repr)
+    def test_instructor_menu_delete_instructor(self):
+        with self.simulate_menu_input(["1", "4", "5", "5"]):
+            main_menu()
+            self.mock_delete_instructor.assert_called_once()
 
-    def test_cascade_delete_courses_and_enrollments_from_instructor(self):
-        instructor = self.create_instructor(name="Chef White", expertise="Cooking")
-        course1 = self.create_course(title="Baking Basics", instructor=instructor)
-        course2 = self.create_course(title="Advanced Pastries", instructor=instructor)
-        enrollment1 = self.create_enrollment(student_name="Cook 1", course=course1, instructor=instructor)
-        enrollment2 = self.create_enrollment(student_name="Cook 2", course=course2, instructor=instructor)
+    def test_instructor_menu_invalid_option(self):
+        with self.simulate_menu_input(["1", "99", "5", "5"]):
+            main_menu()
+            self.assertIn("Invalid option. Please try again.", self.held_output.getvalue())
+            self.mock_sys_exit.assert_called_once()
 
-        self.assertEqual(self.session.query(Instructor).count(), 1)
-        self.assertEqual(self.session.query(Course).count(), 2)
-        self.assertEqual(self.session.query(Enrollment).count(), 2)
+    def test_main_menu_to_course_menu_and_back(self):
+        with self.simulate_menu_input(["2", "6", "5"]):
+            main_menu()
+            self.mock_add_course.assert_not_called()
+            self.mock_sys_exit.assert_called_once()
+            output = self.held_output.getvalue()
+            self.assertIn("--- Manage Courses ---", output)
 
-        self.session.delete(instructor)
-        self.session.commit()
+    def test_course_menu_add_course(self):
+        with self.simulate_menu_input(["2", "1", "6", "5"]):
+            main_menu()
+            self.mock_add_course.assert_called_once()
 
-        self.assertEqual(self.session.query(Instructor).count(), 0)
-        self.assertEqual(self.session.query(Course).count(), 0)
-        self.assertEqual(self.session.query(Enrollment).count(), 0)
+    def test_course_menu_list_courses(self):
+        with self.simulate_menu_input(["2", "2", "6", "5"]):
+            main_menu()
+            self.mock_list_courses.assert_called_once()
 
-    def test_course_creation_with_valid_data(self):
-        instructor = self.create_instructor()
-        course = Course(title="Introduction to SQL", duration=40, instructor=instructor)
-        self.session.add(course)
-        self.session.commit()
+    def test_course_menu_find_course(self):
+        with self.simulate_menu_input(["2", "3", "6", "5"]):
+            main_menu()
+            self.mock_find_course.assert_called_once()
 
-        retrieved_course = self.session.query(Course).filter_by(title="Introduction to SQL").first()
-        self.assertIsNotNone(retrieved_course)
-        self.assertEqual(retrieved_course.title, "Introduction to SQL")
-        self.assertEqual(retrieved_course.duration, 40)
-        self.assertEqual(retrieved_course.instructor_id, instructor.id)
-        self.assertEqual(retrieved_course.instructor.name, "Test Instructor")
+    def test_course_menu_delete_course(self):
+        with self.simulate_menu_input(["2", "4", "6", "5"]):
+            main_menu()
+            self.mock_delete_course.assert_called_once()
 
-    def test_course_title_uniqueness(self):
-        instructor = self.create_instructor()
-        self.create_course(title="Data Science Basics", duration=60, instructor=instructor)
+    def test_course_menu_assign_course(self):
+        with self.simulate_menu_input(["2", "5", "6", "5"]):
+            main_menu()
+            self.mock_assign_course.assert_called_once()
 
-        course2 = Course(title="Data Science Basics", duration=30, instructor=instructor)
-        self.session.add(course2)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
+    def test_course_menu_invalid_option(self):
+        with self.simulate_menu_input(["2", "99", "6", "5"]):
+            main_menu()
+            self.assertIn("Invalid option. Please try again.", self.held_output.getvalue())
+            self.mock_sys_exit.assert_called_once()
 
-    def test_cascade_delete_enrollments_from_course(self):
-        instructor = self.create_instructor(name="Rogue Instructor")
-        course = self.create_course(title="Absorption 101", instructor=instructor)
-        enrollment_date = datetime.datetime.now()
+    def test_main_menu_to_enrollment_menu_and_back(self):
+        with self.simulate_menu_input(["3", "5", "5"]):
+            main_menu()
+            self.mock_add_enrollment.assert_not_called()
+            self.mock_sys_exit.assert_called_once()
+            output = self.held_output.getvalue()
+            self.assertIn("--- Manage Enrollments ---", output)
 
-        enrollment1 = Enrollment(student_name="Student X", enrollment_date=enrollment_date, instructor=instructor, course=course)
-        enrollment2 = Enrollment(student_name="Student Y", enrollment_date=enrollment_date, instructor=instructor, course=course)
-        self.session.add_all([enrollment1, enrollment2])
-        self.session.commit()
+    def test_enrollment_menu_add_enrollment(self):
+        with self.simulate_menu_input(["3", "1", "5", "5"]):
+            main_menu()
+            self.mock_add_enrollment.assert_called_once()
 
-        self.assertEqual(self.session.query(Enrollment).count(), 2)
+    def test_enrollment_menu_list_enrollments(self):
+        with self.simulate_menu_input(["3", "2", "5", "5"]):
+            main_menu()
+            self.mock_list_enrollments.assert_called_once()
 
-        self.session.delete(course)
-        self.session.commit()
+    def test_enrollment_menu_find_enrollment(self):
+        with self.simulate_menu_input(["3", "3", "5", "5"]):
+            main_menu()
+            self.mock_find_enrollment.assert_called_once()
 
-        self.assertEqual(self.session.query(Enrollment).count(), 0)
-        self.assertEqual(self.session.query(Course).count(), 0)
+    def test_enrollment_menu_delete_enrollment(self):
+        with self.simulate_menu_input(["3", "4", "5", "5"]):
+            main_menu()
+            self.mock_delete_enrollment.assert_called_once()
 
-    def test_enrollment_creation_with_valid_data(self):
-        instructor = self.create_instructor(name="Prof. X")
-        course = self.create_course(title="Mutant History", instructor=instructor)
-        enrollment_date = datetime.datetime.now()
-
-        enrollment = Enrollment(
-            student_name="Jean Grey",
-            enrollment_date=enrollment_date,
-            instructor=instructor,
-            course=course
-        )
-        self.session.add(enrollment)
-        self.session.commit()
-
-        retrieved_enrollment = self.session.query(Enrollment).filter_by(student_name="Jean Grey").first()
-        self.assertIsNotNone(retrieved_enrollment)
-        self.assertEqual(retrieved_enrollment.student_name, "Jean Grey")
-        self.assertEqual(retrieved_enrollment.instructor.name, "Prof. X")
-        self.assertEqual(retrieved_enrollment.course.title, "Mutant History")
-
-    def test_enrollment_nullable_constraints(self):
-        instructor = self.create_instructor()
-        course = self.create_course(instructor=instructor)
-
-        enrollment_missing_name = Enrollment(
-            enrollment_date=datetime.datetime.now(),
-            instructor=instructor,
-            course=course
-        )
-        self.session.add(enrollment_missing_name)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
-
-        enrollment_missing_date = Enrollment(
-            student_name="Cyclops",
-            instructor=instructor,
-            course=course
-        )
-        self.session.add(enrollment_missing_date)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
-
-    def test_enrollment_repr(self):
-        instructor = self.create_instructor(name="Beast")
-        course = self.create_course(title="Genetics 101", instructor=instructor)
-        enrollment = self.create_enrollment(student_name="Nightcrawler", course=course, instructor=instructor)
-
-        expected_repr = f"<Enrollment(id={enrollment.id}, student='Nightcrawler', course=Genetics 101, instructor=Beast)>"
-        self.assertEqual(str(enrollment), expected_repr)
+    def test_enrollment_menu_invalid_option(self):
+        with self.simulate_menu_input(["3", "99", "5", "5"]):
+            main_menu()
+            self.assertIn("Invalid option. Please try again.", self.held_output.getvalue())
+            self.mock_sys_exit.assert_called_once()
