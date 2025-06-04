@@ -50,3 +50,19 @@ def get_enrollment_by_id(session: Session, enrollment_id: int) -> Enrollment | N
     Returns Enrollment ORM object or None if not found.
     """
     return session.query(Enrollment).get(enrollment_id)
+
+@log_query
+def get_instructor_by_email(session: Session, email: str) -> Instructor | None:
+    """
+    Retrieves an Instructor object by its email.
+    Returns Instructor ORM object or None if not found.
+    """
+    return session.query(Instructor).filter(Instructor.email == email).first()
+
+@log_query
+def get_enrollments_by_student_email(session: Session, email: str) -> list[Enrollment]:
+    """
+    Retrieves all Enrollment objects for a student by their email.
+    Returns a list of Enrollment ORM objects (empty list if none found).
+    """
+    return session.query(Enrollment).filter(Enrollment.student_email == email).all()

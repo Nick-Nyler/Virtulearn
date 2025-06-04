@@ -3,7 +3,7 @@ from lib.database import get_session, create_db_tables, drop_db_tables
 from lib.models.instructor import Instructor
 from lib.models.course import Course
 from lib.models.enrollment import Enrollment
-from lib.helpers import validate_input, get_instructor_by_id, get_course_by_id, get_enrollment_by_id
+from lib.helpers import validate_input, get_instructor_by_id, get_course_by_id, get_enrollment_by_id, get_instructor_by_email, get_enrollments_by_student_email
 from datetime import datetime
 
 def perform_initdb():
@@ -22,14 +22,15 @@ def add_instructor_cli():
     with get_session() as session:
         name = validate_input("Enter instructor name: ")
         expertise = validate_input("Enter instructor expertise: ")
+        email = validate_input("Enter instructor email: ")
         try:
-            instructor = Instructor(name=name, expertise=expertise)
+            instructor = Instructor(name=name, expertise=expertise, email=email)
             session.add(instructor)
             session.commit()
             print(f"Instructor '{name}' added successfully with ID: {instructor.id}")
         except IntegrityError:
             session.rollback()
-            print(f"Error: An instructor with the name '{name}' already exists.")
+            print(f"Error: An instructor with the name '{name}' or email '{email}' already exists.")
         except Exception as e:
             session.rollback()
             print(f"An unexpected error occurred: {e}")
@@ -40,7 +41,7 @@ def list_instructors_cli():
         if instructors:
             print("\n--- All Instructors ---")
             for instr in instructors:
-                print(f"ID: {instr.id}, Name: {instr.name}, Expertise: {instr.expertise}")
+                print(f"ID: {instr.id}, Name: {instr.name}, Expertise: {instr.expertise}, Email: {instr.email}")
                 if instr.courses:
                     print("  Courses Taught:")
                     for course in instr.courses:
@@ -65,6 +66,7 @@ def find_instructor_cli():
             print(f"\n--- Instructor Details (ID: {instructor_id}) ---")
             print(f"Name: {instructor.name}") 
             print(f"Expertise: {instructor.expertise}") 
+            print(f"Email: {instructor.email}")
             if instructor.courses:
                 print("Courses Taught:")
                 for course in instructor.courses:
@@ -78,17 +80,53 @@ def find_instructor_cli():
         else:
             print(f"Instructor with ID {instructor_id} not found.")
 
+def find_instructor_by_email_cli():
+    with get_session() as session:
+        email = validate_input("Enter instructor email: ")
+        instructor = get_instructor_by_email(session, email)
+        if instructor:
+            print(f"\n--- Instructor Details (Email: {email}) ---")
+            print(f"ID: {instructor.id}")
+            print(f"Name: {instructor.name}") 
+            print(f"Expertise: {instructor.expertise}")
+            if instructor.courses:
+                print("Courses Taught:")
+                for course in instructor.courses:
+                    print(f"  - {course.title} ({course.duration})")
+            else:
+                print("No courses assigned.")
+            if instructor.enrollments:
+                print("Student Enrollments:")
+                for enroll in instructor.enrollments:
+                    print(f"  - Student: {enroll.student_name}, Course: {enroll.course.title if enroll.course else 'N/A'}")
+        else:
+            print(f"No instructor found with email: {email}")
+
+def find_enrollments_by_email_cli():
+    with get_session() as session:
+        email = validate_input("Enter student email: ")
+        enrollments = get_enrollments_by_student_email(session, email)
+        if enrollments:
+            print(f"\n--- Enrollments for Email: {email} ---")
+            for enroll in enrollments:
+                course_title = enroll.course.title if enroll.course else "N/A (Course Deleted)"
+                instructor_name = enroll.instructor.name if enroll.instructor else "N/A (No Instructor)"
+                enrollment_date_str = enroll.enrollment_date.strftime('%Y-%m-%d') if enroll.enrollment_date else 'N/A'
+                print(f"ID: {enroll.id}, Student: {enroll.student_name}, Email: {enroll.student_email}, Course: {course_title}, Instructor: {instructor_name}, Date: {enrollment_date_str}")
+        else:
+            print(f"No enrollments found for email: {email}")
+
 def delete_instructor_cli():
     with get_session() as session:
         instructor_id = validate_input("Enter instructor ID to delete: ", type_func=int)
         instructor = get_instructor_by_id(session, instructor_id)
         if instructor:
-            confirm = input(f"Are you sure you want to delete instructor '{instructor.name}' and all their associated data? (yes/no): ").lower() # Access directly
+            confirm = input(f"Are you sure you want to delete instructor '{instructor.name}' and all their associated data? (yes/no): ").lower()
             if confirm == 'yes':
                 try:
                     session.delete(instructor)
                     session.commit()
-                    print(f"Instructor '{instructor.name}' and associated data deleted successfully.") # Access directly
+                    print(f"Instructor '{instructor.name}' and associated data deleted successfully.")
                 except Exception as e:
                     session.rollback()
                     print(f"An error occurred while deleting instructor: {e}")
@@ -116,7 +154,7 @@ def add_course_cli():
             session.add(course)
             session.commit()
             if instructor:
-                print(f"Course '{title}' added successfully with ID: {course.id} and assigned to '{instructor.name}'.") # Access directly
+                print(f"Course '{title}' added successfully with ID: {course.id} and assigned to '{instructor.name}'.")
             else:
                 print(f"Course '{title}' added successfully with ID: {course.id}")
         except IntegrityError:
@@ -198,7 +236,7 @@ def assign_course_cli():
         try:
             course.instructor = instructor
             session.commit() 
-            print(f"Course '{course.title}' successfully assigned to instructor '{instructor.name}'.") # Access directly
+            print(f"Course '{course.title}' successfully assigned to instructor '{instructor.name}'.")
         except Exception as e:
             session.rollback()
             print(f"An error occurred while assigning course: {e}")
@@ -206,6 +244,7 @@ def assign_course_cli():
 def add_enrollment_cli():
     with get_session() as session:
         student_name = validate_input("Enter student name: ")
+        student_email = validate_input("Enter student email: ")
         course_id = validate_input("Enter course ID for enrollment: ", type_func=int)
 
         instructor_id_str = input("Enter instructor ID for this enrollment (optional, leave blank if not specific): ").strip()
@@ -241,6 +280,7 @@ def add_enrollment_cli():
 
             enrollment = Enrollment(
                 student_name=student_name,
+                student_email=student_email,
                 course_id=course_id,
                 instructor_id=final_instructor_id_for_enrollment,
                 enrollment_date=enrollment_date_obj 
@@ -261,7 +301,7 @@ def list_enrollments_cli():
                 course_title = enroll.course.title if enroll.course else "N/A (Course Deleted)"
                 instructor_name = enroll.instructor.name if enroll.instructor else "N/A (No Instructor)"
                 enrollment_date_str = enroll.enrollment_date.strftime('%Y-%m-%d') if enroll.enrollment_date else 'N/A'
-                print(f"ID: {enroll.id}, Student: {enroll.student_name}, Course: {course_title}, Instructor: {instructor_name}, Date: {enrollment_date_str}")
+                print(f"ID: {enroll.id}, Student: {enroll.student_name}, Email: {enroll.student_email}, Course: {course_title}, Instructor: {instructor_name}, Date: {enrollment_date_str}")
             print("-----------------------")
         else:
             print("No enrollments found.")
@@ -276,6 +316,7 @@ def find_enrollment_cli():
             enrollment_date_str = enrollment.enrollment_date.strftime('%Y-%m-%d') if enrollment.enrollment_date else 'N/A'
             print(f"\n--- Enrollment Details (ID: {enrollment_id}) ---")
             print(f"Student: {enrollment.student_name}")
+            print(f"Email: {enrollment.student_email}")
             print(f"Course: {course_title}")
             print(f"Instructor: {instructor_name}")
             print(f"Enrollment Date: {enrollment_date_str}")

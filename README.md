@@ -19,7 +19,7 @@ VirtuLearn is a simple, console-based Learning Management System (LMS) designed 
 ### Instructor Management:
 - Add new instructors with name and expertise.
 - List all instructors with their assigned courses and student enrollments.
-- Find instructor details by ID.
+- Find instructor details by ID or email.
 - Delete instructors (along with their associated courses and enrollments, if configured).
 
 ### Course Management:
@@ -32,7 +32,7 @@ VirtuLearn is a simple, console-based Learning Management System (LMS) designed 
 ### Enrollment Management:
 - Enroll students in courses, optionally linking to a specific instructor and specifying an enrollment date.
 - List all enrollments with student name, course title, instructor, and date.
-- Find enrollment details by ID.
+- Find enrollment details by ID or email.
 - Delete enrollments.
 
 ### Database Management:
